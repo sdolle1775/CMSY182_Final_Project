@@ -16,6 +16,7 @@ public class Main extends Application {
         scene = new Scene(loadFXML("betrecorder"));
         stage.setTitle("Bet Recorder");
         stage.setScene(scene);
+        stage.setResizable(false);
         stage.show();
     }
 
