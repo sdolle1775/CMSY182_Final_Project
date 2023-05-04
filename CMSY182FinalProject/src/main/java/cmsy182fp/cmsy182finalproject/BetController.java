@@ -2,16 +2,26 @@ package cmsy182fp.cmsy182finalproject;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.scene.control.TableColumn.CellEditEvent;
+import javafx.scene.control.cell.PropertyValueFactory;
 import java.lang.Math;
+import java.time.LocalDate;
+import java.time.Month;
+
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.paint.Color;
 
 public class BetController {
+    @FXML
+    private DatePicker DateEntry;
+    @FXML
+    private TextField RecordName;
     @FXML
     private Label MessageLabel;
     @FXML
@@ -46,6 +56,18 @@ public class BetController {
     private TextField Leg8;
     @FXML
     private TextField Leg9;
+    @FXML
+    private TableView<BetRecord> TableView;
+    @FXML
+    private TableColumn<BetRecord, LocalDate> DateColumn;
+    @FXML
+    private TableColumn<BetRecord, String> NameColumn;
+    @FXML
+    private TableColumn<BetRecord, Double> AmountWageredColumn;
+    @FXML
+    private TableColumn<BetRecord, Double> OddsColumn;
+    @FXML
+    private TableColumn<BetRecord, Double> AmountWonColumn;
 
     private String initialMessage;
     private Double initialSliderValue;
@@ -55,6 +77,35 @@ public class BetController {
         initialMessage = MessageLabel.getText();
         initialSliderValue = WagerSlider.getValue();
         initialLegValue = 1;
+
+        RecordName.setText("Untitled");
+        DateEntry.setValue(LocalDate.now());
+
+        DateColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, LocalDate>("date"));
+        NameColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, String>("name"));
+        AmountWageredColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, Double>("amountWagered"));
+        OddsColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, Double>("odds"));
+        AmountWonColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, Double>("amountWon"));
+
+        TableView.setEditable(true);
+        NameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+
+        TableView.setItems(getRecords());
+    }
+
+    public ObservableList<BetRecord> getRecords() {
+        ObservableList<BetRecord> record = FXCollections.observableArrayList();
+        record.add(new BetRecord(LocalDate.of(2022, Month.OCTOBER, 20),"Example Entry 1",350.50, 200.0, 701.00  ));
+        record.add(new BetRecord(LocalDate.of(2022, Month.NOVEMBER, 13),"Example Entry 2",100.00, -150.0, 66.67  ));
+        record.add(new BetRecord(LocalDate.of(2022, Month.DECEMBER, 1),"Example Entry 3",80.75, 100.0, 0.00  ));
+
+        return record;
+    }
+
+    public void changeNameCellEvent(CellEditEvent editedCell) {
+        BetRecord recordSelected = TableView.getSelectionModel().getSelectedItem();
+        recordSelected.setName(editedCell.getNewValue().toString());
+
     }
     private class ClearOutputChangeListener<T> implements  ChangeListener<T> {
         @Override
@@ -62,6 +113,7 @@ public class BetController {
             clearCalculatedControls();
         }
     }
+
     private void clearCalculatedControls() {
         MessageLabel.setText(initialMessage);
         WagerEntry.clear();
@@ -70,7 +122,40 @@ public class BetController {
         ExpectedPayout.clear();
         ExpectedWinnings.clear();
     }
+    @FXML
+    void WonButtonPressed(ActionEvent event) {
+        try {
+            String entry = WagerEntry.getText();
+            Double entrydouble = Double.parseDouble(entry);
+            String odds = TotalOdds.getText();
+            Double oddsdouble = Double.parseDouble(odds);
+            String winnings = ExpectedWinnings.getText();
+            Double winningsdouble = Double.parseDouble(winnings);
 
+            BetRecord newRecord = new BetRecord(DateEntry.getValue(), RecordName.getText(), entrydouble, oddsdouble, winningsdouble);
+
+            TableView.getItems().add(newRecord);
+        } catch (NumberFormatException e) {
+            MessageLabel.setTextFill(Color.web("#a30000"));
+            MessageLabel.setText("Parsing Error: Check your inputs.");
+        }
+    }
+    @FXML
+    void LostButtonPressed(ActionEvent event) {
+        try {
+            String entry = WagerEntry.getText();
+            Double entrydouble = Double.parseDouble(entry);
+            String odds = TotalOdds.getText();
+            Double oddsdouble = Double.parseDouble(odds);
+
+            BetRecord newRecord = new BetRecord(DateEntry.getValue(), RecordName.getText(), entrydouble, oddsdouble, 0.00);
+
+            TableView.getItems().add(newRecord);
+        } catch (NumberFormatException e) {
+            MessageLabel.setTextFill(Color.web("#a30000"));
+            MessageLabel.setText("Parsing Error: Check your inputs.");
+        }
+    }
     @FXML
     void PayoutButtonPressed(ActionEvent event) {
         try {
@@ -87,8 +172,8 @@ public class BetController {
             double PayoutValue = (WagerValue*SliderValue)*OddsDecimal;
             double WinningsValue = PayoutValue-(WagerValue*SliderValue);
             WagerEntry.setText(String.valueOf(WagerValue*SliderValue));
-            ExpectedPayout.setText(String.format("%,.2f", PayoutValue));
-            ExpectedWinnings.setText(String.format("%,.2f", WinningsValue));
+            ExpectedPayout.setText(String.format("%.2f", PayoutValue));
+            ExpectedWinnings.setText(String.format("%.2f", WinningsValue));
             WagerSlider.setValue(initialSliderValue);
             MessageLabel.setTextFill(Color.web("#000000"));
             MessageLabel.setText("Payout successfully calculated.");
