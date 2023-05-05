@@ -1,3 +1,10 @@
+/**
+ * BetRecord- records bet entry as object
+ * CMSY167 Spring 2023
+ * @author Samuel Dolle
+ * @version 1.0
+ *
+ */
 package cmsy182fp.cmsy182finalproject;
 
 import java.time.LocalDate;
@@ -14,7 +21,7 @@ public class BetRecord {
         this.name = Name;
         this.amountWagered = AmountWagered;
         this.odds = Odds;
-        this.amountWon = AmountWon;
+        this.amountWon = AmountWon; //constructor created with bet entry fields as parameters
     }
 
     public LocalDate getDate() {
