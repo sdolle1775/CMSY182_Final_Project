@@ -10,9 +10,12 @@ import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn.CellEditEvent;
 import javafx.scene.control.cell.PropertyValueFactory;
+
+import java.io.*;
 import java.lang.Math;
 import java.time.LocalDate;
 import java.time.Month;
+import java.util.Scanner;
 
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.paint.Color;
@@ -34,6 +37,8 @@ public class BetController {
     private TextField ExpectedPayout;
     @FXML
     private TextField ExpectedWinnings;
+    @FXML
+    private TextField TotalWinnings;
     @FXML
     private Button CalculateParlay;
     @FXML
@@ -73,9 +78,33 @@ public class BetController {
     private Double initialSliderValue;
     private Integer initialLegValue;
 
+    //list of Highscore items
+
+    String fileName = "src/main/java/cmsy182fp/cmsy182finalproject/betrecorderoutput.txt";
+    File file = new File(fileName);
+    ObservableList<BetRecord> record = FXCollections.observableArrayList();
+
+    public void initList(){
+        try {
+            Scanner input = new Scanner(file);
+            while ((input.hasNext())){
+                String data = input.nextLine();
+                String[] values_line = data.split("##");
+
+                record.add(new BetRecord(LocalDate.parse(values_line[0]),(values_line[1]),Double.valueOf(values_line[2]),Double.valueOf(values_line[3]),Double.valueOf(values_line[4])));
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void initialize() {
+        initList();
         initialMessage = MessageLabel.getText();
         initialSliderValue = WagerSlider.getValue();
+        ExpectedWinnings.setEditable(false);
+        ExpectedPayout.setEditable(false);
+        TotalWinnings.setEditable(false);
         initialLegValue = 1;
 
         RecordName.setText("Untitled");
@@ -90,16 +119,27 @@ public class BetController {
         TableView.setEditable(true);
         NameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
 
-        TableView.setItems(getRecords());
+        TableView.setItems(record);
+        showTotalWinnings();
+
     }
 
-    public ObservableList<BetRecord> getRecords() {
-        ObservableList<BetRecord> record = FXCollections.observableArrayList();
-        record.add(new BetRecord(LocalDate.of(2022, Month.OCTOBER, 20),"Example Entry 1",350.50, 200.0, 701.00  ));
-        record.add(new BetRecord(LocalDate.of(2022, Month.NOVEMBER, 13),"Example Entry 2",100.00, -150.0, 66.67  ));
-        record.add(new BetRecord(LocalDate.of(2022, Month.DECEMBER, 1),"Example Entry 3",80.75, 100.0, 0.00  ));
+    public void showTotalWinnings() {
+        Double total = 0.0;
+        Double wagers = 0.0;
+        Double winnings = 0.0;
+        for (int i= 0;i<TableView.getItems().size();i++){
+            wagers = wagers+Double.valueOf(String.valueOf(TableView.getColumns().get(2).getCellObservableValue(i).getValue()));
+            winnings = winnings+Double.valueOf(String.valueOf(TableView.getColumns().get(4).getCellObservableValue(i).getValue()));
+        }
+        total = winnings - wagers;
+        if (total >0) {
+            TotalWinnings.setStyle("-fx-text-fill: green");
+        } else {
+            TotalWinnings.setStyle("-fx-text-fill: red");
+        }
+        TotalWinnings.setText(String.format("%,.2f", total));
 
-        return record;
     }
 
     public void changeNameCellEvent(CellEditEvent editedCell) {
@@ -107,20 +147,63 @@ public class BetController {
         recordSelected.setName(editedCell.getNewValue().toString());
 
     }
-    private class ClearOutputChangeListener<T> implements  ChangeListener<T> {
-        @Override
-        public void changed(ObservableValue<? extends T> observableValue, T oldValue, T newValue) {
-            clearCalculatedControls();
+    @FXML
+    public void SaveFilePressed(ActionEvent event) {
+        try {
+            BufferedWriter outwriter = new BufferedWriter(new FileWriter(file));
+            StringBuilder outstr = new StringBuilder("");
+
+            for(BetRecord entries: record) {
+                outstr.append(entries.getDate().toString() + "##" + entries.getName().toString() + "##" + entries.getAmountWagered().toString() + "##" + entries.getOdds().toString() + "##" + entries.getAmountWon().toString());
+                String output = outstr.toString();
+                outwriter.write(output);
+                outwriter.newLine();
+                outstr.setLength(0);
+
+            }
+
+            MessageLabel.setTextFill(Color.web("#00FF00"));
+            MessageLabel.setText("File has been successfully saved.");
+            outwriter.close();
+        } catch (IOException e) {
+            MessageLabel.setTextFill(Color.web("#a30000"));
+            MessageLabel.setText("Parsing Error: Check your inputs.");
         }
     }
+    @FXML
+    void RemoveEntryPressed(ActionEvent event) {
+        ObservableList<BetRecord> selectedRows, allRecords;
+        allRecords = TableView.getItems();
 
-    private void clearCalculatedControls() {
+        selectedRows = TableView.getSelectionModel().getSelectedItems();
+
+        for (BetRecord record: selectedRows) {
+            allRecords.remove(record);
+        }
+        MessageLabel.setTextFill(Color.web("#000000"));
+        MessageLabel.setText("Entry Removed");
+        showTotalWinnings();
+    }
+
+    @FXML
+    void ResetButtonPressed(ActionEvent event) {
+        MessageLabel.setTextFill(Color.web("#000000"));
         MessageLabel.setText(initialMessage);
+        RecordName.setText("Untitled");
         WagerEntry.clear();
         WagerSlider.setValue(initialSliderValue);
         TotalOdds.clear();
         ExpectedPayout.clear();
         ExpectedWinnings.clear();
+        Leg1.clear();
+        Leg2.clear();
+        Leg3.clear();
+        Leg4.clear();
+        Leg5.clear();
+        Leg6.clear();
+        Leg7.clear();
+        Leg8.clear();
+        Leg9.clear();
     }
     @FXML
     void WonButtonPressed(ActionEvent event) {
@@ -135,6 +218,7 @@ public class BetController {
             BetRecord newRecord = new BetRecord(DateEntry.getValue(), RecordName.getText(), entrydouble, oddsdouble, winningsdouble);
 
             TableView.getItems().add(newRecord);
+            showTotalWinnings();
         } catch (NumberFormatException e) {
             MessageLabel.setTextFill(Color.web("#a30000"));
             MessageLabel.setText("Parsing Error: Check your inputs.");
@@ -151,6 +235,7 @@ public class BetController {
             BetRecord newRecord = new BetRecord(DateEntry.getValue(), RecordName.getText(), entrydouble, oddsdouble, 0.00);
 
             TableView.getItems().add(newRecord);
+            showTotalWinnings();
         } catch (NumberFormatException e) {
             MessageLabel.setTextFill(Color.web("#a30000"));
             MessageLabel.setText("Parsing Error: Check your inputs.");
@@ -314,10 +399,16 @@ public class BetController {
             }else{
                 ParlayOdds = (ParlayDecimal-1)*100;
             }
-            double ParlayRounded = Math.round(ParlayOdds);
-            TotalOdds.setText(String.valueOf(ParlayRounded));
-            MessageLabel.setTextFill(Color.web("#000000"));
-            MessageLabel.setText("Parlay successfully calculated.");
+            if (LegOneDecimal==1&&LegTwoDecimal==1&&LegThreeDecimal==1&&LegFourDecimal==1&&LegFiveDecimal==1&&LegSixDecimal==1&&LegSevenDecimal==1&&LegEightDecimal==1&&LegNineDecimal==1) {
+                MessageLabel.setTextFill(Color.web("#a30000"));
+                MessageLabel.setText("Error: No inputs in leg fields.");
+            } else {
+                double ParlayRounded = Math.round(ParlayOdds);
+                TotalOdds.setText(String.valueOf(ParlayRounded));
+                MessageLabel.setTextFill(Color.web("#000000"));
+                MessageLabel.setText("Parlay successfully calculated.");
+            }
+
 
 
         }catch (NumberFormatException e) {
