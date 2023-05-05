@@ -1,26 +1,30 @@
+/**
+ * BetController- javaFx controller class for Bet Recorder
+ * CMSY167 Spring 2023
+ * @author Samuel Dolle
+ * @version 1.0
+ *
+ */
 package cmsy182fp.cmsy182finalproject;
 
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn.CellEditEvent;
 import javafx.scene.control.cell.PropertyValueFactory;
-
 import java.io.*;
 import java.lang.Math;
 import java.time.LocalDate;
-import java.time.Month;
 import java.util.Scanner;
-
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.paint.Color;
+import javafx.scene.media.AudioClip; //edited module-info.java and pom.xml; also added Maven dependency
+
 
 public class BetController {
+    //declare fxml variables
     @FXML
     private DatePicker DateEntry;
     @FXML
@@ -78,19 +82,17 @@ public class BetController {
     private Double initialSliderValue;
     private Integer initialLegValue;
 
-    //list of Highscore items
-
-    String fileName = "src/main/java/cmsy182fp/cmsy182finalproject/betrecorderoutput.txt";
+    String fileName = "src/main/java/cmsy182fp/cmsy182finalproject/betrecorderoutput.txt"; //file path URL for text file where bets are recorded
     File file = new File(fileName);
-    ObservableList<BetRecord> record = FXCollections.observableArrayList();
+    ObservableList<BetRecord> record = FXCollections.observableArrayList(); //create observable list of BetRecord objects and add to FX Collection in observable array list
 
     public void initList(){
         try {
-            Scanner input = new Scanner(file);
+            Scanner input = new Scanner(file); //load text file into scanner
             while ((input.hasNext())){
                 String data = input.nextLine();
-                String[] values_line = data.split("##");
-
+                String[] values_line = data.split("!@#%"); //split strings by delimiter
+                //scanning each line, add strings as object parameters for Bet Record then add each record to observableArrayList
                 record.add(new BetRecord(LocalDate.parse(values_line[0]),(values_line[1]),Double.valueOf(values_line[2]),Double.valueOf(values_line[3]),Double.valueOf(values_line[4])));
             }
         } catch (FileNotFoundException e) {
@@ -99,42 +101,53 @@ public class BetController {
     }
 
     public void initialize() {
-        initList();
+        initList(); //load text file first
         initialMessage = MessageLabel.getText();
         initialSliderValue = WagerSlider.getValue();
-        ExpectedWinnings.setEditable(false);
+        ExpectedWinnings.setEditable(false); //set these text fields as non editable
         ExpectedPayout.setEditable(false);
         TotalWinnings.setEditable(false);
+        //set default values
         initialLegValue = 1;
-
         RecordName.setText("Untitled");
         DateEntry.setValue(LocalDate.now());
-
+        //name and instantiate TableView columns
         DateColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, LocalDate>("date"));
         NameColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, String>("name"));
         AmountWageredColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, Double>("amountWagered"));
         OddsColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, Double>("odds"));
         AmountWonColumn.setCellValueFactory(new PropertyValueFactory<BetRecord, Double>("amountWon"));
-
+        //allow for editing of cells in NameColumn
         TableView.setEditable(true);
         NameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
 
-        TableView.setItems(record);
-        showTotalWinnings();
+        TableView.setItems(record); //populate table
+        showTotalWinnings(); //update Total Winnings field
 
     }
 
-    public void showTotalWinnings() {
+    public void playChachingSound() { //play sound using external maven dependency
+        AudioClip chaching= new AudioClip(this.getClass().getResource("chaching.wav").toString()); //create audioclip file
+        chaching.play();
+    }
+
+    public void playButtonSound() {
+        AudioClip buttonsound= new AudioClip(this.getClass().getResource("button.wav").toString());
+        buttonsound.play();
+    }
+
+    public void showTotalWinnings() { //display Total Winnings field
         Double total = 0.0;
         Double wagers = 0.0;
         Double winnings = 0.0;
         for (int i= 0;i<TableView.getItems().size();i++){
+            //retrieve sum value of all cells in columns 2 (AmountWagered) and 4 (AmountWon) stored separately
             wagers = wagers+Double.valueOf(String.valueOf(TableView.getColumns().get(2).getCellObservableValue(i).getValue()));
             winnings = winnings+Double.valueOf(String.valueOf(TableView.getColumns().get(4).getCellObservableValue(i).getValue()));
         }
-        total = winnings - wagers;
+        total = winnings - wagers; //subtract wagers from winnings to find total winnings
         if (total >0) {
-            TotalWinnings.setStyle("-fx-text-fill: green");
+            TotalWinnings.setStyle("-fx-text-fill: green"); //css text fill change dependent on positive or negative total winnings
         } else {
             TotalWinnings.setStyle("-fx-text-fill: red");
         }
@@ -142,51 +155,56 @@ public class BetController {
 
     }
 
-    public void changeNameCellEvent(CellEditEvent editedCell) {
+    public void changeNameCellEvent(CellEditEvent editedCell) { //allow for Names of records to be edited
         BetRecord recordSelected = TableView.getSelectionModel().getSelectedItem();
-        recordSelected.setName(editedCell.getNewValue().toString());
-
+        recordSelected.setName(editedCell.getNewValue().toString()); //allow for editing name directly in cell
     }
+
     @FXML
-    public void SaveFilePressed(ActionEvent event) {
-        try {
+    public void SaveFilePressed(ActionEvent event) { //overwrite "betrecorderoutput.txt" file to save progress
+        playButtonSound(); //call sound effect method
+        try { //use bufferedwriter and stringbuilder to format and write text
             BufferedWriter outwriter = new BufferedWriter(new FileWriter(file));
             StringBuilder outstr = new StringBuilder("");
 
-            for(BetRecord entries: record) {
-                outstr.append(entries.getDate().toString() + "##" + entries.getName().toString() + "##" + entries.getAmountWagered().toString() + "##" + entries.getOdds().toString() + "##" + entries.getAmountWon().toString());
+            for(BetRecord entries: record) { //create string using stringbuilder for each record
+                //string builder format grabs all fields of BetRecord object seperated by throwaway characters
+                outstr.append(entries.getDate().toString() + "!@#%" + entries.getName().toString() + "!@#%" + entries.getAmountWagered().toString() + "!@#%" + entries.getOdds().toString() + "!@#%" + entries.getAmountWon().toString());
                 String output = outstr.toString();
                 outwriter.write(output);
-                outwriter.newLine();
-                outstr.setLength(0);
-
+                outwriter.newLine(); //add newlines between entries
+                outstr.setLength(0); //clear string builder
             }
 
-            MessageLabel.setTextFill(Color.web("#00FF00"));
-            MessageLabel.setText("File has been successfully saved.");
+            MessageLabel.setTextFill(Color.web("#00FF00")); //change message color to green
+            MessageLabel.setText("File has been successfully saved."); //success confirmation
             outwriter.close();
+
         } catch (IOException e) {
-            MessageLabel.setTextFill(Color.web("#a30000"));
-            MessageLabel.setText("Parsing Error: Check your inputs.");
+            MessageLabel.setTextFill(Color.web("#a30000")); //change message color to red
+            MessageLabel.setText("Parsing Error: Check your inputs."); //error message
         }
     }
+
     @FXML
-    void RemoveEntryPressed(ActionEvent event) {
+    void RemoveEntryPressed(ActionEvent event) { //delete selected record in ViewTable
+        playButtonSound();
         ObservableList<BetRecord> selectedRows, allRecords;
         allRecords = TableView.getItems();
 
-        selectedRows = TableView.getSelectionModel().getSelectedItems();
+        selectedRows = TableView.getSelectionModel().getSelectedItems(); //retrieve all items in selected row
 
         for (BetRecord record: selectedRows) {
-            allRecords.remove(record);
+            allRecords.remove(record); //remove all entries for row selected
         }
-        MessageLabel.setTextFill(Color.web("#000000"));
+        MessageLabel.setTextFill(Color.web("#000000")); //change message color to black
         MessageLabel.setText("Entry Removed");
-        showTotalWinnings();
+        showTotalWinnings(); //update total winnings field
     }
 
     @FXML
-    void ResetButtonPressed(ActionEvent event) {
+    void ResetButtonPressed(ActionEvent event) { //clear enter-able text fields
+        playButtonSound();
         MessageLabel.setTextFill(Color.web("#000000"));
         MessageLabel.setText(initialMessage);
         RecordName.setText("Untitled");
@@ -205,78 +223,86 @@ public class BetController {
         Leg8.clear();
         Leg9.clear();
     }
+
     @FXML
-    void WonButtonPressed(ActionEvent event) {
-        try {
+    void WonButtonPressed(ActionEvent event) { //submit bet as won record
+        playChachingSound(); //play chaching sound effect
+        try { //store current values of appropriate fields, parsing as double where necessary
             String entry = WagerEntry.getText();
             Double entrydouble = Double.parseDouble(entry);
             String odds = TotalOdds.getText();
             Double oddsdouble = Double.parseDouble(odds);
             String winnings = ExpectedWinnings.getText();
             Double winningsdouble = Double.parseDouble(winnings);
-
+            //enter variable as new object parameters
             BetRecord newRecord = new BetRecord(DateEntry.getValue(), RecordName.getText(), entrydouble, oddsdouble, winningsdouble);
-
+            //enter new object in table
             TableView.getItems().add(newRecord);
-            showTotalWinnings();
+            showTotalWinnings(); // update total winnings
+            MessageLabel.setTextFill(Color.web("#00FF00"));
+            MessageLabel.setText("Bet successfully recorded as won.");
         } catch (NumberFormatException e) {
             MessageLabel.setTextFill(Color.web("#a30000"));
             MessageLabel.setText("Parsing Error: Check your inputs.");
         }
     }
+
     @FXML
-    void LostButtonPressed(ActionEvent event) {
+    void LostButtonPressed(ActionEvent event) { //submit bet as lost record
+        playButtonSound();
         try {
             String entry = WagerEntry.getText();
             Double entrydouble = Double.parseDouble(entry);
             String odds = TotalOdds.getText();
             Double oddsdouble = Double.parseDouble(odds);
-
+            //enter variables as new object parameters, entering 0.00 for amount won
             BetRecord newRecord = new BetRecord(DateEntry.getValue(), RecordName.getText(), entrydouble, oddsdouble, 0.00);
 
             TableView.getItems().add(newRecord);
             showTotalWinnings();
+            MessageLabel.setTextFill(Color.web("#000000"));
+            MessageLabel.setText("Bet successfully recorded as lost.");
         } catch (NumberFormatException e) {
             MessageLabel.setTextFill(Color.web("#a30000"));
             MessageLabel.setText("Parsing Error: Check your inputs.");
         }
     }
+
     @FXML
-    void PayoutButtonPressed(ActionEvent event) {
-        try {
+    void PayoutButtonPressed(ActionEvent event) { //calculate payout based on wager and odds
+        playButtonSound();
+        try { //parse all relevant fields as doubles
             double WagerValue = Double.parseDouble(WagerEntry.getText());
             double OddsValue = Double.parseDouble(TotalOdds.getText());
-            double SliderValue = WagerSlider.getValue();
-            double OddsDecimal;
-            if (OddsValue<0) {
+            double SliderValue = WagerSlider.getValue(); // slider used for quick multiplication of wager by either x.5,x1,x1.5,or x2.0
+            double OddsDecimal; //odds must first be converted from american to decimal odds
+            if (OddsValue<0) { //if american odds are negative the absolute value is taken then 100 divided by the result then +1
                 double OddsNegative = Math.abs(OddsValue);
                OddsDecimal = 100/OddsNegative +1;
-            } else {
+            } else { //if american odds are positive they are divided by 100 then +1
                 OddsDecimal = OddsValue/100 +1;
             }
-            double PayoutValue = (WagerValue*SliderValue)*OddsDecimal;
-            double WinningsValue = PayoutValue-(WagerValue*SliderValue);
+            double PayoutValue = (WagerValue*SliderValue)*OddsDecimal; //multiply wager by slider value (default 1) then by new decimal odds
+            double WinningsValue = PayoutValue-(WagerValue*SliderValue); // winnings equal payout minus wager value
             WagerEntry.setText(String.valueOf(WagerValue*SliderValue));
-            ExpectedPayout.setText(String.format("%.2f", PayoutValue));
+            ExpectedPayout.setText(String.format("%.2f", PayoutValue)); //update appropriate fields
             ExpectedWinnings.setText(String.format("%.2f", WinningsValue));
-            WagerSlider.setValue(initialSliderValue);
+            WagerSlider.setValue(initialSliderValue); //reset slider value to 1
             MessageLabel.setTextFill(Color.web("#000000"));
             MessageLabel.setText("Payout successfully calculated.");
-
 
         }catch (NumberFormatException e) {
             MessageLabel.setTextFill(Color.web("#a30000"));
             MessageLabel.setText("Parsing Error: Check your inputs.");
-
         }
-
     }
 
     @FXML
-    void ParlayButtonPressed(ActionEvent event) {
+    void ParlayButtonPressed(ActionEvent event) { //calculate parlays which are bets involving multiple legs, or combined odds
+        playButtonSound();
         try {
-            double LegOneDecimal;
-            if (Leg1.getText().isBlank()) {
+            double LegOneDecimal; //again american odds must first be converted to decimal odds by the same process
+            if (Leg1.getText().isBlank()) { //if leg field is blank value is set to 1
                 LegOneDecimal=initialLegValue;
             } else {
                 double LegOne = Double.parseDouble(Leg1.getText());
@@ -391,33 +417,26 @@ public class BetController {
                     LegNineDecimal = LegNine / 100 + 1;
                 }
             }
-
+            //decimal odds of all legs are multiplied together, blank leg field values are set to 1 and so do not affect outcome
             double ParlayDecimal = LegOneDecimal*LegTwoDecimal*LegThreeDecimal*LegFourDecimal*LegFiveDecimal*LegSixDecimal*LegSevenDecimal*LegEightDecimal*LegNineDecimal;
             double ParlayOdds;
-            if (ParlayDecimal<2.0) {
+            if (ParlayDecimal<2.0) { //if combined decimal odds is < 2, is equivalent to negative american odds, -100 is divided by (result minus 1)
                ParlayOdds = -100/(ParlayDecimal-1);
-            }else{
+            }else{ //if combined decimal odds is >= 2, is equivalent to positive american odds, (result minus 1) is multiplied by 100
                 ParlayOdds = (ParlayDecimal-1)*100;
-            }
+            } //if all leg field values equal 1, no data was entered in appropriate fields, throw error message
             if (LegOneDecimal==1&&LegTwoDecimal==1&&LegThreeDecimal==1&&LegFourDecimal==1&&LegFiveDecimal==1&&LegSixDecimal==1&&LegSevenDecimal==1&&LegEightDecimal==1&&LegNineDecimal==1) {
                 MessageLabel.setTextFill(Color.web("#a30000"));
                 MessageLabel.setText("Error: No inputs in leg fields.");
             } else {
-                double ParlayRounded = Math.round(ParlayOdds);
+                double ParlayRounded = Math.round(ParlayOdds); //round parlay odds as is done with sportsbooks
                 TotalOdds.setText(String.valueOf(ParlayRounded));
                 MessageLabel.setTextFill(Color.web("#000000"));
                 MessageLabel.setText("Parlay successfully calculated.");
             }
-
-
-
         }catch (NumberFormatException e) {
             MessageLabel.setTextFill(Color.web("#a30000"));
             MessageLabel.setText("Parsing Error: Check your inputs.");
-
         }
     }
-
-
-
 }
